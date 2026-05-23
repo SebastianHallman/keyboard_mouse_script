@@ -94,6 +94,7 @@ MOVE_KEYS = {
 
 SPEED = 18
 FAST_MULTIPLIER = 2
+PRINT_SCREEN_KEYS = {"print screen", "prtsc", "snapshot"}
 
 
 def get_cursor_pos():
@@ -102,11 +103,19 @@ def get_cursor_pos():
     return pt.x, pt.y
 
 
+def get_screen_size():
+    return (
+        ctypes.windll.user32.GetSystemMetrics(0),
+        ctypes.windll.user32.GetSystemMetrics(1),
+    )
+
+
 def run_crosshair_overlay():
+    screen_width, screen_height = get_screen_size()
     root = tk.Tk()
     root.overrideredirect(True)
     root.attributes("-topmost", True)
-    root.geometry(f"{SCREEN_WIDTH}x{SCREEN_HEIGHT}+0+0")
+    root.geometry(f"{screen_width}x{screen_height}+0+0")
     root.configure(bg="black")
     root.wm_attributes("-transparentcolor", "black")
 
@@ -116,7 +125,13 @@ def run_crosshair_overlay():
     ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, exstyle)
     ctypes.windll.user32.SetLayeredWindowAttributes(hwnd, 0, 0, LWA_COLORKEY)
 
-    canvas = tk.Canvas(root, width=SCREEN_WIDTH, height=SCREEN_HEIGHT, bg="black", highlightthickness=0)
+    canvas = tk.Canvas(
+        root,
+        width=screen_width,
+        height=screen_height,
+        bg="black",
+        highlightthickness=0,
+    )
     canvas.pack(fill="both", expand=True)
 
     def tick():
@@ -136,6 +151,19 @@ def run_crosshair_overlay():
     root.mainloop()
 
 
+def run_overlay_supervisor():
+    while True:
+        try:
+            run_crosshair_overlay()
+        except Exception as e:
+            print(f"Overlay crashed, restarting: {e}")
+            time.sleep(1)
+            continue
+
+        print("Overlay exited unexpectedly, restarting.")
+        time.sleep(1)
+
+
 def handle_key(event):
     if event.event_type != "down":
         return True
@@ -149,6 +177,10 @@ def handle_key(event):
 
     if not numlock_on():
         return True
+
+    # Windows can route PrtSc through special handlers; explicitly swallow it in mouse mode.
+    if key in PRINT_SCREEN_KEYS:
+        return False
 
     # While mouse mode is active, block typed input from reaching applications.
     suppress = key != "num lock"
@@ -175,7 +207,7 @@ def handle_key(event):
 
 def main():
     ensure_cursor_visible()
-    overlay_thread = threading.Thread(target=run_crosshair_overlay, daemon=True)
+    overlay_thread = threading.Thread(target=run_overlay_supervisor, daemon=True)
     overlay_thread.start()
     print("Keyboard mouse helper started.")
     print("Custom crosshair overlay: ON")
