@@ -24,6 +24,7 @@ LWA_COLORKEY = 0x00000001
 SCREEN_WIDTH = ctypes.windll.user32.GetSystemMetrics(0)
 SCREEN_HEIGHT = ctypes.windll.user32.GetSystemMetrics(1)
 
+SHOW_CUSTOM_CURSOR = False
 
 class POINT(ctypes.Structure):
     _fields_ = [("x", wintypes.LONG), ("y", wintypes.LONG)]
@@ -207,8 +208,9 @@ def handle_key(event):
 
 def main():
     ensure_cursor_visible()
-    overlay_thread = threading.Thread(target=run_overlay_supervisor, daemon=True)
-    overlay_thread.start()
+    if SHOW_CUSTOM_CURSOR:
+        overlay_thread = threading.Thread(target=run_overlay_supervisor, daemon=True)
+        overlay_thread.start()
     print("Keyboard mouse helper started.")
     print("Custom crosshair overlay: ON")
     print("NumLock ON enables controls; NumLock OFF passes keys normally.")
